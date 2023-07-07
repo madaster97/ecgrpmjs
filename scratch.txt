@@ -1,0 +1,59 @@
+
+
+model enrollments {
+  id                 Int                 @id
+  patient_id         Int?
+  accession_number   Int?
+  provider_id        Int?
+  status             enrollments_status?
+  enrollment_instant DateTime?           @db.Timestamp(6)
+  patients           patients?           @relation(fields: [patient_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  providers          providers?          @relation(fields: [provider_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  periods            periods[]
+}
+
+model findings {
+  id            Int       @id
+  period        Int?
+  found_instant DateTime? @db.Timestamp(6)
+  external_id   String?   @db.VarChar
+  periods       periods?  @relation(fields: [period], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model patients {
+  id          Int           @id
+  mrn         String?       @db.VarChar
+  pid_string  String?       @db.VarChar
+  enrollments enrollments[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model periods {
+  id               Int             @id
+  enrollment       Int?
+  status           periods_status?
+  submit_instant   DateTime?       @db.Timestamp(6)
+  accession_number Int?
+  findings         findings[]
+  enrollments      enrollments?    @relation(fields: [enrollment], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model providers {
+  id          Int           @id
+  prov_id     String?       @db.VarChar
+  name        String?       @db.VarChar
+  enrollments enrollments[]
+}
+
+enum enrollments_status {
+  open
+  closed
+  cancelled
+}
+
+enum periods_status {
+  submitted
+  open
+  closed
+  cancelled
+}

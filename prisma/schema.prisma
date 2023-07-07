@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Patient {
+  id          Int          @id @default(autoincrement())
+  mrn         String       @unique @db.VarChar(64) // Seems like a good number
+  pidString   String
+  enrollments Enrollment[]
+}
+
+model Provider {
+  id          Int          @id @default(autoincrement())
+  title       String       @db.VarChar(255)
+  provId      String       @unique @db.VarChar(64)
+  enrollments Enrollment[]
+}
+
+enum EnrollmentsStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+model Enrollment {
+  id              Int               @id @default(autoincrement())
+  receivedAt      DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  status          EnrollmentsStatus @default(OPEN) //Makes opening really slim command
+  accessionNumber String?            @unique @db.VarChar(64) //Optional bea
+  provider        Provider          @relation(fields: [providerId], references: [id])
+  providerId      Int
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  patientId       Int
+  periods         Period[]
+}
+
+enum PeriodStatus {
+  SUBMITTED
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+model Period {
+  id              Int          @id @default(autoincrement())
+  submittedAt     DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  status          PeriodStatus @default(SUBMITTED)
+  accessionNumber String?      @unique @db.VarChar(64)
+  enrollment      Enrollment   @relation(fields: [enrollmentId], references: [id])
+  enrollmentId    Int
+  findings        Finding[]
+}
+
+model Finding {
+  id          Int      @id @default(autoincrement())
+  submittedAt DateTime @default(now())
+  externalId  String   @unique @db.Uuid
+  period      Period   @relation(fields: [periodId], references: [id])
+  periodId    Int
+}
