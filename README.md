@@ -23,15 +23,32 @@ https://blog.appsignal.com/2020/01/15/the-pros-and-cons-of-using-structure-sql-i
 
 Working on a really simple db
 
+# Actions Needed
+Events from Epic:
+- Enrollment received (when received, set OPEN Enrollment)
+    - Respond immediately, don't create period
+    - If anything fails send a V2 error!
+- Period callback (when received, set OPEN Period)
+    - What if we don't know this period?
+    - Send a V2 error!
+
+How do we make sure an enrollment has only 1 active finding?
+https://www.prisma.io/docs/concepts/components/prisma-schema/relations#disambiguating-relations
+
+Events from app: (HTTP/v2 Errors show in UI)
+- Enrollment closed (after HTTP success, set CLOSED Enrollment)
+- Period created (write SUBMITTED Period row, if HTTP fails show error)
+- Period closed (after HTTP success, set CLOSED Period)
+- Finding sumbmitted (write row, if HTTP fails show error)
+
+# Old
 First pass actions needed:
 - Enroll a patient with an order message
     - Write OPEN default when received
     - Write CLOSED when we close it
-    - Write CANCELLED (for some reason? maybe take out)
 - Create a new period for an enrollment
-    - Write SUBMITTED when submitted (default)
+    - Write SUBMITTED after submitting w/o error
     - Write OPEN when accession ID received (should only be one open period per enrollment at a time)
-    - Write CANCELLED (for some reason? maybe take out)
     - Write CLOSED when we close it out
 - Submit a finding for a period
 - Close a period

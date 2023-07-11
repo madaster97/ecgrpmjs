@@ -1,8 +1,8 @@
 -- CreateEnum
-CREATE TYPE "EnrollmentsStatus" AS ENUM ('OPEN', 'CLOSED', 'CANCELLED');
+CREATE TYPE "EnrollmentsStatus" AS ENUM ('OPEN', 'CLOSED');
 
 -- CreateEnum
-CREATE TYPE "PeriodStatus" AS ENUM ('SUBMITTED', 'OPEN', 'CLOSED', 'CANCELLED');
+CREATE TYPE "PeriodStatus" AS ENUM ('SUBMITTED', 'OPEN', 'CLOSED');
 
 -- CreateTable
 CREATE TABLE "Patient" (
@@ -28,7 +28,7 @@ CREATE TABLE "Enrollment" (
     "receivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "status" "EnrollmentsStatus" NOT NULL DEFAULT 'OPEN',
-    "accessionNumber" VARCHAR(64) NOT NULL,
+    "accessionNumber" VARCHAR(64),
     "providerId" INTEGER NOT NULL,
     "patientId" INTEGER NOT NULL,
 
@@ -40,9 +40,10 @@ CREATE TABLE "Period" (
     "id" SERIAL NOT NULL,
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "status" "PeriodStatus" NOT NULL,
+    "status" "PeriodStatus" NOT NULL DEFAULT 'SUBMITTED',
     "accessionNumber" VARCHAR(64),
     "enrollmentId" INTEGER NOT NULL,
+    "activeForId" INTEGER,
 
     CONSTRAINT "Period_pkey" PRIMARY KEY ("id")
 );
@@ -51,7 +52,6 @@ CREATE TABLE "Period" (
 CREATE TABLE "Finding" (
     "id" SERIAL NOT NULL,
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "externalId" UUID NOT NULL,
     "periodId" INTEGER NOT NULL,
 
     CONSTRAINT "Finding_pkey" PRIMARY KEY ("id")
@@ -70,7 +70,7 @@ CREATE UNIQUE INDEX "Enrollment_accessionNumber_key" ON "Enrollment"("accessionN
 CREATE UNIQUE INDEX "Period_accessionNumber_key" ON "Period"("accessionNumber");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Finding_externalId_key" ON "Finding"("externalId");
+CREATE UNIQUE INDEX "Period_activeForId_key" ON "Period"("activeForId");
 
 -- AddForeignKey
 ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_providerId_fkey" FOREIGN KEY ("providerId") REFERENCES "Provider"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -80,6 +80,9 @@ ALTER TABLE "Enrollment" ADD CONSTRAINT "Enrollment_patientId_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "Period" ADD CONSTRAINT "Period_enrollmentId_fkey" FOREIGN KEY ("enrollmentId") REFERENCES "Enrollment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Period" ADD CONSTRAINT "Period_activeForId_fkey" FOREIGN KEY ("activeForId") REFERENCES "Enrollment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Finding" ADD CONSTRAINT "Finding_periodId_fkey" FOREIGN KEY ("periodId") REFERENCES "Period"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

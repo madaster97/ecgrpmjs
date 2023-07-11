@@ -24,7 +24,6 @@ model Provider {
 enum EnrollmentsStatus {
   OPEN
   CLOSED
-  CANCELLED
 }
 
 model Enrollment {
@@ -32,19 +31,19 @@ model Enrollment {
   receivedAt      DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   status          EnrollmentsStatus @default(OPEN) //Makes opening really slim command
-  accessionNumber String?            @unique @db.VarChar(64) //Optional bea
+  accessionNumber String?           @unique @db.VarChar(64) //Optional because submitted won't have it
   provider        Provider          @relation(fields: [providerId], references: [id])
   providerId      Int
   patient         Patient           @relation(fields: [patientId], references: [id])
   patientId       Int
-  periods         Period[]
+  periods         Period[]          @relation("Periods")
+  activePeriod    Period?           @relation("ActivePeriod")
 }
 
 enum PeriodStatus {
   SUBMITTED
   OPEN
   CLOSED
-  CANCELLED
 }
 
 model Period {
@@ -53,15 +52,16 @@ model Period {
   updatedAt       DateTime     @updatedAt
   status          PeriodStatus @default(SUBMITTED)
   accessionNumber String?      @unique @db.VarChar(64)
-  enrollment      Enrollment   @relation(fields: [enrollmentId], references: [id])
+  enrollment      Enrollment   @relation("Periods", fields: [enrollmentId], references: [id])
   enrollmentId    Int
+  activeFor       Enrollment?  @relation("ActivePeriod", fields: [activeForId], references: [id])
+  activeForId     Int?         @unique
   findings        Finding[]
 }
 
 model Finding {
   id          Int      @id @default(autoincrement())
   submittedAt DateTime @default(now())
-  externalId  String   @unique @db.Uuid
   period      Period   @relation(fields: [periodId], references: [id])
   periodId    Int
 }
