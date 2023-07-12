@@ -33,8 +33,23 @@ async function enroll(
 
 // Update a Period on callback
 async function setPeriodCallback(periodId: number, accessionNumber: string) {
-  // TODO: Make sure Period is SUBMITTED
   // TODO: Update patient demographics on callback
+  // Make sure Period is SUBMITTED
+  const period = await prisma.period.findUniqueOrThrow({
+    where: { id: periodId },
+    select: {
+      status: true,
+    },
+  });
+  switch (period.status) {
+    case "CLOSED":
+      throw new Error("Period has been closed already");
+    case "OPEN":
+      // Otherwise, closing SUBMITTED could cause race condition for callback
+      throw new Error("Period callback has already been received");
+    case "SUBMITTED":
+      break;
+  }
   return prisma.period.update({
     where: { id: periodId },
     data: {
@@ -45,34 +60,74 @@ async function setPeriodCallback(periodId: number, accessionNumber: string) {
 
 // Close an erollment in app, after HTTP success
 async function closeEnrollment(enrollmentId: number) {
-  // TODO: Make sure it's OPEN, and has no active enrollment
-  return prisma.enrollment.update({
+  // Make sure it's OPEN, and has no active period
+  const period = await prisma.enrollment.findFirstOrThrow({
     where: { id: enrollmentId },
-    data: {
-      status: "CLOSED",
+    select: {
+      status: true,
     },
   });
+  switch (period.status) {
+    case "CLOSED":
+      throw new Error("Enrollment is already closed");
+    case "OPEN":
+      break;
+  }
+
+  const maybePeriod = await prisma.period.findUnique({
+    where: { activeForId: enrollmentId },
+  });
+  if (!!maybePeriod) {
+    throw new Error('Enrollment has an active period, cannot be closed')
+  } else {
+    return prisma.enrollment.update({
+      where: { id: enrollmentId },
+      data: {
+        status: "CLOSED",
+      },
+    });
+  }
 }
 
 // Create a new Period in app, before HTTP request, returns ID
 async function newPeriod(enrollmentId: number) {
-  // TODO: Check if enrollment has an active period already
-  return prisma.period.create({
-    data: {
-      enrollment: {
-        connect: { id: enrollmentId },
-      },
-      activeFor: {
-        connect: { id: enrollmentId },
-      },
-    },
+  // Check if enrollment has an active period already, can only have 1
+  const maybePeriod = await prisma.period.findUnique({
+    where: { activeForId: enrollmentId },
   });
+  if (!!maybePeriod) {
+    throw new Error('Enrollment has an active period, cannot be assigned another')
+  } else {
+    return prisma.period.create({
+      data: {
+        enrollment: {
+          connect: { id: enrollmentId },
+        },
+        activeFor: {
+          connect: { id: enrollmentId },
+        },
+      },
+    });
+  }
 }
 
 // Close a Period in app
 async function closePeriod(periodId: number) {
-  // TODO: Check period is OPEN. Otherwise fail
-  // Otherwise, closing SUBMITTED could cause race condition for callback?
+  const period = await prisma.period.findUniqueOrThrow({
+    where: { id: periodId },
+    select: {
+      status: true,
+    },
+  });
+  switch (period.status) {
+    case "CLOSED":
+      throw new Error("Period is already closed");
+    case "SUBMITTED":
+      // Otherwise, closing SUBMITTED could cause race condition for callback
+      throw new Error("Period callback has not been received");
+    case "OPEN":
+      break;
+  }
   return prisma.period.update({
     where: { id: periodId },
     data: {
@@ -86,7 +141,21 @@ async function closePeriod(periodId: number) {
 
 // Submit a finding, before HTTP request, returns ID
 async function submitFinding(periodId: number) {
-  // TODO: Make sure Period is OPEN
+  const period = await prisma.period.findFirstOrThrow({
+    where: { id: periodId },
+    select: {
+      status: true,
+    },
+  });
+  switch (period.status) {
+    case "CLOSED":
+      throw new Error("Period is closed");
+    case "SUBMITTED":
+      // Otherwise, EHR can't accept
+      throw new Error("Period callback has not been received");
+    case "OPEN":
+      break;
+  }
   return prisma.finding.create({
     data: {
       period: {
